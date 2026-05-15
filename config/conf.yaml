@@ -1,0 +1,7 @@
+env: "local"
+token_ttl: 1800s
+serv:
+  port: ":8090"
+  timeout: 4s
+  idle_timeout: 60s
+
