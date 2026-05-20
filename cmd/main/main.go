@@ -28,7 +28,7 @@ func main() {
 
 	log.Info("starting application", slog.String("port", cfg.Serv.Port))
 
-	go httpApp.HTTPServ.Run()
+	go httpApp.HTTPServ.Run(ctx)
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT)

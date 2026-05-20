@@ -66,7 +66,7 @@ func (s *Storage) Create(
 	defer tx.Rollback(ctx)
 
 	stmt := `
-		INSERT INTO users VALUES(email, passhash)
+		INSERT INTO users (email, passhash)
 		VALUES ($1, $2) RETURNING uid;
 	`
 
@@ -101,13 +101,12 @@ func (s *Storage) User(
 		passhash []byte
 	)
 
-	err = tx.QueryRow(ctx, "", `
+	row := tx.QueryRow(ctx, "", `
 		SELECT uid, passhash FROM users
 		WHERE email = $1;
-		`, email,
-	).Scan(&uid, &passhash)
-	if err != nil {
-		return emptyValue, nil, fmt.Errorf("%s: %w", op, err)
+		`, email)
+	if err = row.Scan(&uid, &passhash); err != nil {
+		return emptyValue, nil, fmt.Errorf("%s: %w (%s)", op, err, email)
 	}
 
 	if err = tx.Commit(ctx); err != nil {

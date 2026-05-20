@@ -88,7 +88,7 @@ func (s *Service) Register(
 	pass string,
 	email string,
 	appID int32,
-) (string, error) {
+) (string, int, error) {
 	const op = "service.service.Register"
 
 	passhash, err := bcrypt.GenerateFromPassword(
@@ -96,12 +96,12 @@ func (s *Service) Register(
 		bcrypt.DefaultCost,
 	)
 	if err != nil {
-		return "", fmt.Errorf("%s: %w", op, err)
+		return "", 0, fmt.Errorf("%s: %w", op, err)
 	}
 
 	uid, err := s.uc.Create(ctx, email, passhash)
 	if err != nil {
-		return "", fmt.Errorf("%s: %w", op, err)
+		return "", 0, fmt.Errorf("%s: %w", op, err)
 	}
 
 	token, err := jwts.CreateToken(
@@ -112,8 +112,8 @@ func (s *Service) Register(
 		s.secretKey,
 	)
 	if err != nil {
-		return "", fmt.Errorf("%s: %w", op, err)
+		return "", 0, fmt.Errorf("%s: %w", op, err)
 	}
 
-	return token, nil
+	return token, int(uid), nil
 }
