@@ -66,10 +66,14 @@ func (h *Handler) Register(ctx context.Context) gin.HandlerFunc {
 
 		if err != nil {
 			if errors.Is(err, errs.AlreadyExists) {
+				h.log.Info("user already exists")
+
 				c.JSON(http.StatusBadRequest, gin.H{
 					"status":  "already exists",
 					"message": "user already exists",
 				})
+
+				return
 			}
 
 			h.log.Error("failed to register user", slog.Any("err", err))
@@ -82,8 +86,12 @@ func (h *Handler) Register(ctx context.Context) gin.HandlerFunc {
 			return
 		}
 
-		c.SetCookie("jwt_token", token, 1500, "/", "localhost", false, true)
-		c.SetCookie("uid", strconv.Itoa(uid), 5000, "/", "localhost", false, true)
+		c.SetCookie(
+			"jwt_token", token, 1500, "/", "localhost", false, true,
+		)
+		c.SetCookie(
+			"uid", strconv.Itoa(uid), 5000, "/", "localhost", false, true,
+		)
 
 		c.JSON(http.StatusCreated, gin.H{
 			"status": "ok",
@@ -99,7 +107,7 @@ func (h *Handler) Login(ctx context.Context) gin.HandlerFunc {
 			h.log.Error("failed to bind request", slog.Any("err", err))
 
 			c.JSON(http.StatusBadRequest, gin.H{
-				"error": errs.InvalidRequest,
+				"error": "invalid request",
 			})
 
 			return
@@ -109,13 +117,13 @@ func (h *Handler) Login(ctx context.Context) gin.HandlerFunc {
 			h.log.Error("failed to validate request", slog.Any("err", err))
 
 			c.JSON(http.StatusBadRequest, gin.H{
-				"error": errs.InvalidRequest,
+				"error": "invalid request",
 			})
 
 			return
 		}
 
-		token, err := h.service.Login(
+		token, uid, err := h.service.Login(
 			ctx,
 			req.Password,
 			req.Email,
@@ -140,11 +148,17 @@ func (h *Handler) Login(ctx context.Context) gin.HandlerFunc {
 			return
 		}
 
-		c.SetCookie("jwt_token", token, 1500, "/", "localhost", false, true)
+		c.SetCookie(
+			"jwt_token", token, 1500, "/", "localhost", false, true,
+		)
+		c.SetCookie(
+			"uid", strconv.Itoa(int(uid)), 5000, "/", "localhost", false, true,
+		)
 
 		c.JSON(http.StatusOK, gin.H{
 			"status": "ok",
 		})
+
 	}
 }
 

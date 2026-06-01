@@ -53,20 +53,20 @@ func (s *Service) Login(
 	pass string,
 	email string,
 	appID int32,
-) (string, error) {
+) (string, int32, error) {
 	const op = "service.service.Login"
 
 	uid, passhash, err := s.up.User(ctx, email)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return "", errs.NotFound
+			return "", 0, errs.NotFound
 		}
 
-		return "", fmt.Errorf("%s: %w", op, err)
+		return "", 0, fmt.Errorf("%s: %w", op, err)
 	}
 
 	if err = bcrypt.CompareHashAndPassword(passhash, []byte(pass)); err != nil {
-		return "", errs.InvalidRequest
+		return "", 0, errs.InvalidRequest
 	}
 
 	token, err := jwts.CreateToken(
@@ -77,10 +77,10 @@ func (s *Service) Login(
 		s.secretKey,
 	)
 	if err != nil {
-		return "", fmt.Errorf("%s: %w", op, err)
+		return "", 0, fmt.Errorf("%s: %w", op, err)
 	}
 
-	return token, nil
+	return token, uid, nil
 }
 
 func (s *Service) Register(

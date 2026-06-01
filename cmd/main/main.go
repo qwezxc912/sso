@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/qweq1232/sso/internal/config"
+	grpcapp "github.com/qweq1232/sso/internal/grpc_app"
 	app "github.com/qweq1232/sso/internal/http_app"
 )
 
@@ -25,9 +26,11 @@ func main() {
 	ctx := context.Background()
 
 	httpApp := app.MustNew(ctx, log, cfg)
+	grpcApp := grpcapp.MustNew(ctx, cfg)
 
 	log.Info("starting application", slog.String("port", cfg.Serv.Port))
 
+	go grpcApp.GRPCServer.MustRun()
 	go httpApp.HTTPServ.Run(ctx)
 
 	stop := make(chan os.Signal, 1)

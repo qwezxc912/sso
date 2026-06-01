@@ -33,7 +33,7 @@ func MustParseConfig() *Config {
 		panic(fmt.Sprintf("config file does not exist: %s", configPath))
 	}
 
-	dsn, err := loadDSN()
+	dsn, err := LoadDSN()
 	if err != nil {
 		panic("failed to load DSN")
 	}
@@ -52,7 +52,7 @@ func MustParseConfig() *Config {
 	return &cfg
 }
 
-func loadDSN() (string, error) {
+func LoadDSN() (string, error) {
 	if err := godotenv.Load(); err != nil {
 		return "", err
 	}

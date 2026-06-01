@@ -2,9 +2,12 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	errs "github.com/qweq1232/sso/internal/lib/errors"
 )
 
 const (
@@ -18,7 +21,14 @@ type Storage struct {
 func New(ctx context.Context, dsn string) (*Storage, error) {
 	const op = "internal.storage.postgres.New"
 
-	pool, err := pgxpool.New(ctx, dsn)
+	config, err := pgxpool.ParseConfig(dsn)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	config.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
+
+	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
@@ -74,7 +84,7 @@ func (s *Storage) Create(
 
 	err = tx.QueryRow(ctx, stmt, email, passhash).Scan(&uid)
 	if err != nil {
-		return emptyValue, fmt.Errorf("%s: %w", op, err)
+		return emptyValue, errs.AlreadyExists
 	}
 
 	if err = tx.Commit(ctx); err != nil {
@@ -101,11 +111,17 @@ func (s *Storage) User(
 		passhash []byte
 	)
 
-	row := tx.QueryRow(ctx, "", `
-		SELECT uid, passhash FROM users
-		WHERE email = $1;
-		`, email)
+	row := tx.QueryRow(
+		ctx,
+		`SELECT uid, passhash FROM users
+		WHERE email = $1;`,
+		email,
+	)
 	if err = row.Scan(&uid, &passhash); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return emptyValue, nil, errs.NotFound
+		}
+
 		return emptyValue, nil, fmt.Errorf("%s: %w (%s)", op, err, email)
 	}
 
@@ -114,4 +130,39 @@ func (s *Storage) User(
 	}
 
 	return uid, passhash, nil
+}
+
+func (s *Storage) GetByID(
+	ctx context.Context,
+	id int32,
+) (string, error) {
+	const op = "internal.storage.postgres.GetByID"
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	defer tx.Rollback(ctx)
+
+	var email string
+
+	row := tx.QueryRow(
+		ctx,
+		`SELECT email FROM users
+		WHERE uid = $1;`,
+		id,
+	)
+	if err = row.Scan(&email); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", errs.NotFound
+		}
+
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	return email, nil
 }
